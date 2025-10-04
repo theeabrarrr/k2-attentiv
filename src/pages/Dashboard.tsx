@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
+import { EmployeeManagement } from "@/components/EmployeeManagement";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Dashboard = () => {
@@ -126,6 +127,10 @@ const Dashboard = () => {
         </div>
 
         <AttendanceSummary />
+
+        {role === "admin" && (
+          <EmployeeManagement />
+        )}
 
         {canManageAttendance && (
           <Card className="shadow-card glass-effect border-border/50 animate-slide-up">
