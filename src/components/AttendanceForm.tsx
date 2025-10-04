@@ -27,6 +27,21 @@ export const AttendanceForm = () => {
     fetchEmployees();
   }, []);
 
+  // Auto-mark as late if check-in is after 10:15 AM
+  useEffect(() => {
+    if (checkInTime) {
+      const [hours, minutes] = checkInTime.split(':').map(Number);
+      const checkInMinutes = hours * 60 + minutes;
+      const graceTimeMinutes = 10 * 60 + 15; // 10:15 AM
+      
+      if (checkInMinutes > graceTimeMinutes) {
+        setStatus("late");
+      } else {
+        setStatus("present");
+      }
+    }
+  }, [checkInTime]);
+
   const fetchEmployees = async () => {
     const { data } = await supabase
       .from("profiles")
