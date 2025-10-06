@@ -22,15 +22,16 @@ interface AttendanceRecord {
 
 interface AttendanceListProps {
   canEdit: boolean;
+  refreshTrigger?: number;
 }
 
-export const AttendanceList = ({ canEdit }: AttendanceListProps) => {
+export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps) => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchRecords();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchRecords = async () => {
     const { data: { user } } = await supabase.auth.getUser();

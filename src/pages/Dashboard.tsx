@@ -15,6 +15,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
   const [userName, setUserName] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -126,7 +127,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <AttendanceSummary />
+        <AttendanceSummary refreshTrigger={refreshTrigger} />
 
         {role === "admin" && (
           <EmployeeManagement />
@@ -142,12 +143,12 @@ const Dashboard = () => {
               <CardDescription>Record attendance for employees</CardDescription>
             </CardHeader>
             <CardContent>
-              <AttendanceForm />
+              <AttendanceForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
             </CardContent>
           </Card>
         )}
 
-        <AttendanceList canEdit={canManageAttendance} />
+        <AttendanceList canEdit={canManageAttendance} refreshTrigger={refreshTrigger} />
       </main>
     </div>
   );

@@ -13,7 +13,11 @@ interface Profile {
   full_name: string;
 }
 
-export const AttendanceForm = () => {
+interface AttendanceFormProps {
+  onSuccess?: () => void;
+}
+
+export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -87,6 +91,9 @@ export const AttendanceForm = () => {
       setStatus("present");
       setNotes("");
       setDate(new Date().toISOString().split('T')[0]);
+      
+      // Notify parent to refresh data
+      onSuccess?.();
     }
     setLoading(false);
   };

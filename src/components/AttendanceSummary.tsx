@@ -12,7 +12,11 @@ interface Summary {
   percentage: number;
 }
 
-export const AttendanceSummary = () => {
+interface AttendanceSummaryProps {
+  refreshTrigger?: number;
+}
+
+export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {}) => {
   const [summary, setSummary] = useState<Summary>({
     present: 0,
     absent: 0,
@@ -24,7 +28,7 @@ export const AttendanceSummary = () => {
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchSummary = async () => {
     const { data: { user } } = await supabase.auth.getUser();
