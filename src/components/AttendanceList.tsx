@@ -47,7 +47,8 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
         check_out_time,
         status,
         notes,
-        profiles:user_id (full_name)
+        user_id,
+        profiles!attendance_user_id_fkey (full_name)
       `)
       .order("date", { ascending: false })
       .limit(50);
@@ -66,7 +67,8 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
     const { data, error } = await query;
 
     if (error) {
-      toast.error("Failed to load attendance records");
+      console.error("Attendance fetch error:", error);
+      toast.error("Failed to load attendance records: " + error.message);
     } else if (data) {
       setRecords(data as any);
     }
