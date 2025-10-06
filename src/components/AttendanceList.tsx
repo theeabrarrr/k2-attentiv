@@ -48,7 +48,7 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
         status,
         notes,
         user_id,
-        profiles!attendance_user_id_fkey (full_name)
+        profiles (full_name)
       `)
       .order("date", { ascending: false })
       .limit(50);
