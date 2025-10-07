@@ -4,8 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, List } from "lucide-react";
+import { Download, List, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 
 interface AttendanceRecord {
@@ -28,6 +38,7 @@ interface AttendanceListProps {
 export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps) => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRecords();
@@ -73,6 +84,24 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
       setRecords(data as any);
     }
     setLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    const { error } = await supabase
+      .from("attendance")
+      .delete()
+      .eq("id", deleteId);
+
+    if (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete attendance record: " + error.message);
+    } else {
+      toast.success("Attendance record deleted successfully!");
+      fetchRecords();
+    }
+    setDeleteId(null);
   };
 
   const handleExport = () => {
@@ -157,6 +186,7 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
                   <TableHead>Check-out</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Notes</TableHead>
+                  {canEdit && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,6 +204,18 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
                     <TableCell className="text-muted-foreground text-sm">
                       {record.notes || "—"}
                     </TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(record.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -181,6 +223,23 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this attendance record? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
