@@ -9,6 +9,7 @@ import { AttendanceForm } from "@/components/AttendanceForm";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { EmployeeManagement } from "@/components/EmployeeManagement";
+import { EmployeeAttendanceReport } from "@/components/EmployeeAttendanceReport";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Dashboard = () => {
@@ -128,6 +129,8 @@ const Dashboard = () => {
         </div>
 
         <AttendanceSummary refreshTrigger={refreshTrigger} />
+
+        <EmployeeAttendanceReport />
 
         {role === "admin" && (
           <EmployeeManagement />

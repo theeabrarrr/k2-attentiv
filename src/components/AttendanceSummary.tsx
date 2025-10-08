@@ -35,15 +35,15 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
     
     if (!user) return;
 
-    // Get current month's data
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    const startDate = startOfMonth.toISOString().split('T')[0];
+    // Fixed date range: 26 Sept to 25 Oct 2025
+    const startDate = '2025-09-26';
+    const endDate = '2025-10-25';
 
     let query = supabase
       .from("attendance")
       .select("status")
-      .gte("date", startDate);
+      .gte("date", startDate)
+      .lte("date", endDate);
 
     // If employee, only show their own stats
     const { data: roleData } = await supabase
@@ -87,7 +87,7 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
           <BarChart3 className="h-5 w-5 text-primary" />
           Monthly Summary
         </CardTitle>
-        <CardDescription>Overview of this month's attendance</CardDescription>
+        <CardDescription>26 Sept - 25 Oct 2025</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
