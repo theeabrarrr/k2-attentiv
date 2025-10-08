@@ -62,7 +62,7 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
         profiles (full_name)
       `)
       .order("date", { ascending: false })
-      .limit(200);
+      .limit(1000);
 
     // If not admin/manager, only show their own records
     const { data: roleData } = await supabase
