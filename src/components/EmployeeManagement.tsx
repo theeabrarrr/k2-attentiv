@@ -92,6 +92,34 @@ export const EmployeeManagement = () => {
     setLoading(false);
   };
 
+  const handleDelete = async (employeeId: string, employeeName: string) => {
+    if (!confirm(`Are you sure you want to delete ${employeeName}?`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const response = await supabase.functions.invoke('delete-employee', {
+        body: { employee_id: employeeId },
+      });
+
+      if (response.error) {
+        toast.error(response.error.message || "Failed to delete employee");
+      } else {
+        toast.success(`${employeeName} has been deleted successfully`);
+        fetchEmployees();
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete employee");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-card glass-effect border-border/50">
@@ -186,6 +214,7 @@ export const EmployeeManagement = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,11 +227,21 @@ export const EmployeeManagement = () => {
                         {emp.role}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(emp.id, emp.full_name)}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
