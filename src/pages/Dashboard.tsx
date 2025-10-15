@@ -13,6 +13,12 @@ const Dashboard = () => {
   const { role, loading: roleLoading } = useUserRole();
   const [userName, setUserName] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    todayPresent: 0,
+    lateArrivals: 0,
+    attendanceRate: 0,
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -30,7 +36,61 @@ const Dashboard = () => {
       }
     };
     fetchUser();
+    fetchDashboardStats();
   }, []);
+
+  const fetchDashboardStats = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get week start date (Monday)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
+    
+    // Get month start date
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    // Fetch total employees
+    const { count: totalEmployees } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
+
+    // Fetch today's present count
+    const { count: todayPresent } = await supabase
+      .from("attendance")
+      .select("*", { count: "exact", head: true })
+      .eq("date", today)
+      .eq("status", "present");
+
+    // Fetch late arrivals this week
+    const { count: lateArrivals } = await supabase
+      .from("attendance")
+      .select("*", { count: "exact", head: true })
+      .gte("date", weekStart)
+      .eq("status", "late");
+
+    // Fetch attendance rate for this month
+    const { data: monthAttendance } = await supabase
+      .from("attendance")
+      .select("status")
+      .gte("date", monthStart)
+      .lte("date", monthEnd);
+
+    let attendanceRate = 0;
+    if (monthAttendance && monthAttendance.length > 0) {
+      const presentCount = monthAttendance.filter(r => r.status === "present").length;
+      attendanceRate = Math.round((presentCount / monthAttendance.length) * 100);
+    }
+
+    setStats({
+      totalEmployees: totalEmployees || 0,
+      todayPresent: todayPresent || 0,
+      lateArrivals: lateArrivals || 0,
+      attendanceRate,
+    });
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -81,7 +141,7 @@ const Dashboard = () => {
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">—</div>
+              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
               <p className="text-xs text-muted-foreground">Active users</p>
             </CardContent>
           </Card>
@@ -92,7 +152,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">—</div>
+              <div className="text-2xl font-bold">{stats.todayPresent}</div>
               <p className="text-xs text-muted-foreground">Marked today</p>
             </CardContent>
           </Card>
@@ -103,7 +163,7 @@ const Dashboard = () => {
               <Clock className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">—</div>
+              <div className="text-2xl font-bold">{stats.lateArrivals}</div>
               <p className="text-xs text-muted-foreground">This week</p>
             </CardContent>
           </Card>
@@ -114,7 +174,7 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">—%</div>
+              <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
               <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
