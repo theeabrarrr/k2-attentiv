@@ -119,7 +119,7 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Attendance Rate</p>
-            <p className="text-2xl font-bold gradient-primary bg-clip-text text-transparent">
+            <p className="text-2xl font-bold text-primary">
               {summary.percentage}%
             </p>
           </div>
