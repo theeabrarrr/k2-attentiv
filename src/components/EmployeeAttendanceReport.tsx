@@ -5,8 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { UserSearch, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { UserSearch, CheckCircle2, XCircle, Clock, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { getCurrentAttendanceCycle, getPastCycles, type AttendanceCycle } from "@/lib/attendanceCycle";
 
 interface Employee {
   id: string;
@@ -43,6 +44,8 @@ export const EmployeeAttendanceReport = () => {
   });
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [selectedCycle, setSelectedCycle] = useState<AttendanceCycle>(getCurrentAttendanceCycle());
+  const [availableCycles] = useState<AttendanceCycle[]>(getPastCycles(6));
 
   useEffect(() => {
     fetchEmployees();
@@ -52,7 +55,7 @@ export const EmployeeAttendanceReport = () => {
     if (selectedEmployeeId) {
       fetchEmployeeAttendance(selectedEmployeeId);
     }
-  }, [selectedEmployeeId]);
+  }, [selectedEmployeeId, selectedCycle]);
 
   const fetchEmployees = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -91,8 +94,8 @@ export const EmployeeAttendanceReport = () => {
   const fetchEmployeeAttendance = async (employeeId: string) => {
     setLoading(true);
     
-    const startDate = '2025-09-26';
-    const endDate = '2025-10-25';
+    // Use selected attendance cycle (26th to 25th)
+    const { startDate, endDate } = selectedCycle;
 
     const { data } = await supabase
       .from("attendance")
@@ -118,6 +121,13 @@ export const EmployeeAttendanceReport = () => {
     setLoading(false);
   };
 
+  const handleCycleChange = (cycleLabel: string) => {
+    const cycle = availableCycles.find(c => c.label === cycleLabel);
+    if (cycle) {
+      setSelectedCycle(cycle);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "present":
@@ -141,7 +151,24 @@ export const EmployeeAttendanceReport = () => {
             <UserSearch className="h-5 w-5 text-primary" />
             Employee Attendance Report
           </CardTitle>
-          <CardDescription>Search and view individual employee attendance (26 Sept - 25 Oct 2025)</CardDescription>
+          <CardDescription className="flex items-center gap-2 flex-wrap">
+            <span>Search and view individual employee attendance</span>
+            <span className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <Select value={selectedCycle.label} onValueChange={handleCycleChange}>
+                <SelectTrigger className="w-[240px] h-8 glass-effect">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCycles.map((cycle) => (
+                    <SelectItem key={cycle.label} value={cycle.label}>
+                      {cycle.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
@@ -164,7 +191,7 @@ export const EmployeeAttendanceReport = () => {
           <Card className="shadow-card glass-effect border-border/50 animate-fade-in">
             <CardHeader>
               <CardTitle>{selectedEmployee?.full_name} - Attendance Summary</CardTitle>
-              <CardDescription>26 Sept - 25 Oct 2025</CardDescription>
+              <CardDescription>{selectedCycle.label}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">

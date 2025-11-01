@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarChart3, CheckCircle2, XCircle, Clock, Calendar } from "lucide-react";
+import { getCurrentAttendanceCycle, getPastCycles, type AttendanceCycle } from "@/lib/attendanceCycle";
 
 interface Summary {
   present: number;
@@ -25,20 +27,20 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
     percentage: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [selectedCycle, setSelectedCycle] = useState<AttendanceCycle>(getCurrentAttendanceCycle());
+  const [availableCycles] = useState<AttendanceCycle[]>(getPastCycles(6));
 
   useEffect(() => {
     fetchSummary();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, selectedCycle]);
 
   const fetchSummary = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) return;
 
-    // Dynamic date range: Current month from 1st to today
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const endDate = now.toISOString().split('T')[0];
+    // Use selected attendance cycle (26th to 25th)
+    const { startDate, endDate } = selectedCycle;
 
     let query = supabase
       .from("attendance")
@@ -74,11 +76,11 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
     setLoading(false);
   };
 
-  const getDateRangeText = () => {
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${startDate.getDate()} ${monthNames[startDate.getMonth()]} - ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+  const handleCycleChange = (cycleLabel: string) => {
+    const cycle = availableCycles.find(c => c.label === cycleLabel);
+    if (cycle) {
+      setSelectedCycle(cycle);
+    }
   };
 
   if (loading) {
@@ -96,9 +98,23 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
-          Monthly Summary
+          Attendance Summary
         </CardTitle>
-        <CardDescription>{getDateRangeText()}</CardDescription>
+        <CardDescription className="flex items-center gap-2">
+          <Calendar className="h-4 w-4" />
+          <Select value={selectedCycle.label} onValueChange={handleCycleChange}>
+            <SelectTrigger className="w-[240px] h-8 glass-effect">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCycles.map((cycle) => (
+                <SelectItem key={cycle.label} value={cycle.label}>
+                  {cycle.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
