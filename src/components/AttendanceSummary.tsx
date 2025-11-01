@@ -35,15 +35,17 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
     
     if (!user) return;
 
-    // Fixed date range: 26 Sept to 25 Oct 2025
-    const startDate = '2025-09-26';
-    const endDate = '2025-10-25';
+    // Dynamic date range: Current month from 1st to today
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const endDate = now.toISOString().split('T')[0];
 
     let query = supabase
       .from("attendance")
-      .select("status")
+      .select("status, date")
       .gte("date", startDate)
-      .lte("date", endDate);
+      .lte("date", endDate)
+      .order("date", { ascending: false });
 
     // If employee, only show their own stats
     const { data: roleData } = await supabase
@@ -58,7 +60,7 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
 
     const { data } = await query;
 
-    if (data) {
+    if (data && data.length > 0) {
       const present = data.filter(r => r.status === "present").length;
       const absent = data.filter(r => r.status === "absent").length;
       const late = data.filter(r => r.status === "late").length;
@@ -66,8 +68,17 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
       const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
       setSummary({ present, absent, late, total, percentage });
+    } else {
+      setSummary({ present: 0, absent: 0, late: 0, total: 0, percentage: 0 });
     }
     setLoading(false);
+  };
+
+  const getDateRangeText = () => {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${startDate.getDate()} ${monthNames[startDate.getMonth()]} - ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
   };
 
   if (loading) {
@@ -87,7 +98,7 @@ export const AttendanceSummary = ({ refreshTrigger }: AttendanceSummaryProps = {
           <BarChart3 className="h-5 w-5 text-primary" />
           Monthly Summary
         </CardTitle>
-        <CardDescription>26 Sept - 25 Oct 2025</CardDescription>
+        <CardDescription>{getDateRangeText()}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
