@@ -52,10 +52,11 @@ const Dashboard = () => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    // Fetch total employees
+    // Fetch total active employees
     const { count: totalEmployees } = await supabase
       .from("profiles")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
 
     // Fetch today's present count
     const { count: todayPresent } = await supabase

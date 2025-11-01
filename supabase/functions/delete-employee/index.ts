@@ -50,8 +50,8 @@ serve(async (req) => {
       );
     }
 
-    // Get the employee_id from the request body
-    const { employee_id } = await req.json();
+    // Get the employee_id and optional reason from the request body
+    const { employee_id, reason } = await req.json();
 
     if (!employee_id) {
       return new Response(
@@ -63,15 +63,22 @@ serve(async (req) => {
       );
     }
 
-    // Delete the user using admin API
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(employee_id);
+    // Soft delete: Update the profile instead of deleting the user
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        is_active: false,
+        deactivated_at: new Date().toISOString(),
+        deactivation_reason: reason || null,
+      })
+      .eq('id', employee_id);
 
-    if (deleteError) {
-      throw deleteError;
+    if (updateError) {
+      throw updateError;
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Employee deleted successfully' }),
+      JSON.stringify({ success: true, message: 'Employee deactivated successfully' }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
