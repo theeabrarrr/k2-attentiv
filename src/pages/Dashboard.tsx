@@ -144,7 +144,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <AttendanceSummary key={refreshTrigger} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
+        <AttendanceSummary refreshTrigger={refreshTrigger} />
       </div>
     </div>
   );
