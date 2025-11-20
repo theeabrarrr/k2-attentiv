@@ -111,13 +111,26 @@ const Dashboard = () => {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Employees</CardTitle>
-              <Users className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent><div className="text-3xl font-bold">{stats.totalEmployees}</div></CardContent>
-          </Card>
+          {role === 'employee' ? (
+            <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">My Working Days</CardTitle>
+                <Calendar className="h-5 w-5 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stats.myWorkingDays}</div>
+                <p className="text-xs text-muted-foreground mt-1">This Month</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Employees</CardTitle>
+                <Users className="h-5 w-5 text-primary" />
+              </CardHeader>
+              <CardContent><div className="text-3xl font-bold">{stats.totalEmployees}</div></CardContent>
+            </Card>
+          )}
 
           <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
