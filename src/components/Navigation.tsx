@@ -15,7 +15,7 @@ export const Navigation = () => {
   ];
 
   return (
-    <nav className="border-b border-border bg-card shadow-card">
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex gap-1">
           {navItems.map((item) => {
@@ -27,15 +27,15 @@ export const Navigation = () => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  `flex items-center gap-2 px-5 py-4 text-sm font-medium transition-all relative ${
                     isActive
-                      ? "border-b-2 border-primary text-primary"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`
                 }
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                <span className="hidden sm:inline">{item.label}</span>
               </NavLink>
             );
           })}
