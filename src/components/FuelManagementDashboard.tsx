@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Edit, Loader2 } from "lucide-react";
+import { Download, Edit, Loader2, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { FuelReportEditDialog } from "./FuelReportEditDialog";
+import { FuelImportDialog } from "./FuelImportDialog";
 
 interface FuelReport {
   id: string;
@@ -27,6 +28,7 @@ export function FuelManagementDashboard() {
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
   const [isLoading, setIsLoading] = useState(true);
   const [editingReport, setEditingReport] = useState<FuelReport | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -172,8 +174,12 @@ export function FuelManagementDashboard() {
               />
             </div>
 
-            <div className="flex items-end">
-              <Button onClick={exportToCSV} variant="outline" className="w-full">
+            <div className="flex items-end gap-2">
+              <Button onClick={() => setIsImportOpen(true)} variant="outline" className="flex-1">
+                <Upload className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
+              <Button onClick={exportToCSV} variant="outline" className="flex-1">
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
@@ -238,6 +244,12 @@ export function FuelManagementDashboard() {
           onComplete={handleEditComplete}
         />
       )}
+
+      <FuelImportDialog
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onComplete={fetchReports}
+      />
     </>
   );
 }
