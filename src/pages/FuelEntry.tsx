@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { FuelManagementDashboard } from "@/components/FuelManagementDashboard";
 import { FuelHistoryTable } from "@/components/FuelHistoryTable";
+import { FuelImportDialog } from "@/components/FuelImportDialog";
 
 interface JobItem {
   job_no: string;
@@ -29,6 +30,8 @@ export default function FuelEntry() {
     { job_no: "", area: "", km: 0 },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [refreshHistory, setRefreshHistory] = useState(0);
 
   const addRow = () => {
     setItems([...items, { job_no: "", area: "", km: 0 }]);
@@ -111,6 +114,7 @@ export default function FuelEntry() {
       // Reset form
       setItems([{ job_no: "", area: "", km: 0 }]);
       setDate(new Date());
+      setRefreshHistory(prev => prev + 1);
     } catch (error) {
       console.error("Error submitting fuel report:", error);
       toast.error("An error occurred");
@@ -141,8 +145,20 @@ export default function FuelEntry() {
     <div className="container mx-auto p-4 max-w-4xl space-y-6">
       <Card className="glass-effect border-border/50 shadow-card">
         <CardHeader>
-          <CardTitle className="text-2xl text-primary">Fuel Entry</CardTitle>
-          <CardDescription>Record your daily fuel usage</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl text-primary">Fuel Entry</CardTitle>
+              <CardDescription>Record your daily fuel usage</CardDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsImportOpen(true)}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Date Picker */}
@@ -252,7 +268,13 @@ export default function FuelEntry() {
         </CardContent>
       </Card>
 
-      <FuelHistoryTable />
+      <FuelHistoryTable key={refreshHistory} />
+
+      <FuelImportDialog
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onComplete={() => setRefreshHistory(prev => prev + 1)}
+      />
     </div>
   );
 }
