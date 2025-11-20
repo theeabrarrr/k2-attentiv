@@ -20,6 +20,7 @@ const Dashboard = () => {
     lateArrivals: 0,
     attendanceRate: 0,
     totalFuelAmount: 0,
+    myWorkingDays: 0,
   });
 
   useEffect(() => {
@@ -38,10 +39,18 @@ const Dashboard = () => {
       }
     };
     fetchUser();
-    fetchDashboardStats();
   }, []);
 
+  useEffect(() => {
+    if (role) {
+      fetchDashboardStats();
+    }
+  }, [role]);
+
   const fetchDashboardStats = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
     const dayOfWeek = now.getDay();
@@ -49,6 +58,19 @@ const Dashboard = () => {
     const weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    let myWorkingDays = 0;
+    if (role === 'employee') {
+      // For employees: count their working days this month
+      const { count } = await supabase
+        .from("attendance")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("date", monthStart)
+        .lte("date", monthEnd)
+        .in("status", ["present", "late"]);
+      myWorkingDays = count || 0;
+    }
 
     const { count: totalEmployees } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("is_active", true);
     const { count: todayPresent } = await supabase.from("attendance").select("*", { count: "exact", head: true }).eq("date", today).eq("status", "present");
@@ -64,7 +86,7 @@ const Dashboard = () => {
     const { data: fuelReports } = await supabase.from("fuel_reports").select("total_amount").gte("date", monthStart).lte("date", monthEnd);
     const totalFuelAmount = fuelReports?.reduce((sum, report) => sum + Number(report.total_amount), 0) || 0;
 
-    setStats({ totalEmployees: totalEmployees || 0, todayPresent: todayPresent || 0, lateArrivals: lateArrivals || 0, attendanceRate, totalFuelAmount });
+    setStats({ totalEmployees: totalEmployees || 0, todayPresent: todayPresent || 0, lateArrivals: lateArrivals || 0, attendanceRate, totalFuelAmount, myWorkingDays });
   };
 
   const handleLogout = async () => {
