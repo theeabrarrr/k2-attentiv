@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { LogOut, Users, Calendar, Clock, TrendingUp } from "lucide-react";
+import { LogOut, Users, Calendar, Clock, TrendingUp, Fuel } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -18,6 +18,7 @@ const Dashboard = () => {
     todayPresent: 0,
     lateArrivals: 0,
     attendanceRate: 0,
+    totalFuelAmount: 0,
   });
 
   useEffect(() => {
@@ -85,11 +86,21 @@ const Dashboard = () => {
       attendanceRate = Math.round((presentCount / monthAttendance.length) * 100);
     }
 
+    // Fetch total fuel amount for this month
+    const { data: fuelReports } = await supabase
+      .from("fuel_reports")
+      .select("total_amount")
+      .gte("date", monthStart)
+      .lte("date", monthEnd);
+
+    const totalFuelAmount = fuelReports?.reduce((sum, report) => sum + Number(report.total_amount), 0) || 0;
+
     setStats({
       totalEmployees: totalEmployees || 0,
       todayPresent: todayPresent || 0,
       lateArrivals: lateArrivals || 0,
       attendanceRate,
+      totalFuelAmount,
     });
   };
 
@@ -135,7 +146,7 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           <Card className="shadow-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -176,6 +187,17 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
+              <p className="text-xs text-muted-foreground">This month</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Fuel Amount</CardTitle>
+              <Fuel className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">PKR {stats.totalFuelAmount.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>

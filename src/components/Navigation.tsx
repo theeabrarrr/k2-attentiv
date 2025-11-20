@@ -11,6 +11,7 @@ export const Navigation = () => {
     { path: "/employees", label: "Employees", icon: Users, showForAll: false },
     { path: "/reports", label: "Reports", icon: FileText, showForAll: true },
     { path: "/mark-attendance", label: "Mark Attendance", icon: ClipboardCheck, showForAll: false },
+    { path: "/fuel", label: "Fuel Entry", icon: FileText, showForAll: true },
   ];
 
   return (

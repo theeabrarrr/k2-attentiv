@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Employees from "./pages/Employees";
 import AttendanceReport from "./pages/AttendanceReport";
 import MarkAttendance from "./pages/MarkAttendance";
+import FuelEntry from "./pages/FuelEntry";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,12 @@ const App = () => (
             <>
               <Navigation />
               <MarkAttendance />
+            </>
+          } />
+          <Route path="/fuel" element={
+            <>
+              <Navigation />
+              <FuelEntry />
             </>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
