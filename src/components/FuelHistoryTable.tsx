@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { FuelReportDetailDialog } from "./FuelReportDetailDialog";
 
 interface FuelReport {
   id: string;
@@ -16,6 +18,8 @@ interface FuelReport {
 export function FuelHistoryTable() {
   const [reports, setReports] = useState<FuelReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReport, setSelectedReport] = useState<FuelReport | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
     fetchUserReports();
@@ -46,7 +50,13 @@ export function FuelHistoryTable() {
     }
   };
 
+  const handleViewDetails = (report: FuelReport) => {
+    setSelectedReport(report);
+    setIsDetailOpen(true);
+  };
+
   return (
+    <>
     <Card className="glass-effect border-border/50 shadow-card">
       <CardHeader>
         <CardTitle className="text-xl text-primary">My Fuel Reports</CardTitle>
@@ -65,12 +75,13 @@ export function FuelHistoryTable() {
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Total KM</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                       No fuel reports submitted yet
                     </TableCell>
                   </TableRow>
@@ -82,6 +93,16 @@ export function FuelHistoryTable() {
                       </TableCell>
                       <TableCell className="text-right">{report.total_km.toFixed(2)} km</TableCell>
                       <TableCell className="text-right">PKR {report.total_amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewDetails(report)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -91,5 +112,14 @@ export function FuelHistoryTable() {
         )}
       </CardContent>
     </Card>
+
+    {selectedReport && (
+      <FuelReportDetailDialog
+        report={selectedReport}
+        open={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+      />
+    )}
+    </>
   );
 }
