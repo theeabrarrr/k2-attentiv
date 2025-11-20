@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Edit, Loader2, Upload } from "lucide-react";
+import { Download, Edit, Loader2, Upload, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { FuelReportEditDialog } from "./FuelReportEditDialog";
@@ -29,6 +30,7 @@ export function FuelManagementDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingReport, setEditingReport] = useState<FuelReport | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -137,6 +139,26 @@ export function FuelManagementDashboard() {
     fetchReports();
   };
 
+  const handleDelete = async () => {
+    if (!deletingReportId) return;
+
+    try {
+      const { error } = await supabase
+        .from("fuel_reports")
+        .delete()
+        .eq("id", deletingReportId);
+
+      if (error) throw error;
+
+      toast.success("Fuel report deleted successfully");
+      setDeletingReportId(null);
+      fetchReports();
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      toast.error("Failed to delete fuel report");
+    }
+  };
+
   return (
     <>
       <Card className="glass-effect border-border/50 shadow-card">
@@ -218,13 +240,22 @@ export function FuelManagementDashboard() {
                         <TableCell className="text-right">{report.total_km.toFixed(2)} km</TableCell>
                         <TableCell className="text-right">PKR {report.total_amount.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingReport(report)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingReport(report)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingReportId(report.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -250,6 +281,23 @@ export function FuelManagementDashboard() {
         onClose={() => setIsImportOpen(false)}
         onComplete={fetchReports}
       />
+
+      <AlertDialog open={!!deletingReportId} onOpenChange={() => setDeletingReportId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this fuel report and all its job entries. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
