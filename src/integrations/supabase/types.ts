@@ -61,6 +61,68 @@ export type Database = {
           },
         ]
       }
+      fuel_report_items: {
+        Row: {
+          area: string
+          created_at: string | null
+          id: string
+          job_no: string
+          km: number
+          report_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string | null
+          id?: string
+          job_no: string
+          km: number
+          report_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string | null
+          id?: string
+          job_no?: string
+          km?: number
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_report_items_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_reports: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          total_amount: number
+          total_km: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          total_amount?: number
+          total_km?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          total_amount?: number
+          total_km?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
