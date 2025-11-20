@@ -1,25 +1,26 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subDays } from "date-fns";
 
 export const DashboardCharts = () => {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [fuelData, setFuelData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchChartData();
   }, []);
 
   const fetchChartData = async () => {
-    // Fetch last 7 days attendance data
-    const days = Array.from({ length: 7 }, (_, i) => {
+    // Fetch last 7 days attendance
+    const dates = Array.from({ length: 7 }, (_, i) => {
       const date = subDays(new Date(), 6 - i);
-      return format(date, "yyyy-MM-dd");
+      return format(date, 'yyyy-MM-dd');
     });
 
-    const attendancePromises = days.map(async (date) => {
+    const attendancePromises = dates.map(async (date) => {
       const { count: presentCount } = await supabase
         .from("attendance")
         .select("*", { count: "exact", head: true })
@@ -33,9 +34,9 @@ export const DashboardCharts = () => {
         .eq("status", "late");
 
       return {
-        date: format(new Date(date), "MMM dd"),
-        present: presentCount || 0,
-        late: lateCount || 0,
+        date: format(new Date(date), 'MMM dd'),
+        Present: presentCount || 0,
+        Late: lateCount || 0,
       };
     });
 
@@ -47,32 +48,30 @@ export const DashboardCharts = () => {
       const date = new Date();
       date.setMonth(date.getMonth() - (5 - i));
       return {
-        year: date.getFullYear(),
-        month: date.getMonth() + 1,
-        label: format(date, "MMM yyyy"),
+        month: format(date, 'MMM yyyy'),
+        start: format(new Date(date.getFullYear(), date.getMonth(), 1), 'yyyy-MM-dd'),
+        end: format(new Date(date.getFullYear(), date.getMonth() + 1, 0), 'yyyy-MM-dd'),
       };
     });
 
-    const fuelPromises = months.map(async ({ year, month, label }) => {
-      const monthStart = new Date(year, month - 1, 1).toISOString().split("T")[0];
-      const monthEnd = new Date(year, month, 0).toISOString().split("T")[0];
-
+    const fuelPromises = months.map(async ({ month, start, end }) => {
       const { data } = await supabase
         .from("fuel_reports")
         .select("total_amount")
-        .gte("date", monthStart)
-        .lte("date", monthEnd);
+        .gte("date", start)
+        .lte("date", end);
 
       const total = data?.reduce((sum, report) => sum + Number(report.total_amount), 0) || 0;
 
       return {
-        month: label,
-        amount: Math.round(total),
+        month,
+        Amount: Math.round(total),
       };
     });
 
     const fuelResults = await Promise.all(fuelPromises);
     setFuelData(fuelResults);
+    setLoading(false);
   };
 
   return (
