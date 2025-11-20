@@ -10,6 +10,9 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/useUserRole";
+import { FuelManagementDashboard } from "@/components/FuelManagementDashboard";
+import { FuelHistoryTable } from "@/components/FuelHistoryTable";
 
 interface JobItem {
   job_no: string;
@@ -20,6 +23,7 @@ interface JobItem {
 const RATE_PER_KM = 9;
 
 export default function FuelEntry() {
+  const { role, loading: roleLoading } = useUserRole();
   const [date, setDate] = useState<Date>(new Date());
   const [items, setItems] = useState<JobItem[]>([
     { job_no: "", area: "", km: 0 },
@@ -115,8 +119,26 @@ export default function FuelEntry() {
     }
   };
 
+  // Show admin dashboard if user is admin or manager
+  if (roleLoading) {
+    return (
+      <div className="container mx-auto p-4 max-w-4xl flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (role === "admin" || role === "manager") {
+    return (
+      <div className="container mx-auto p-4 max-w-7xl">
+        <FuelManagementDashboard />
+      </div>
+    );
+  }
+
+  // Technician view
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
+    <div className="container mx-auto p-4 max-w-4xl space-y-6">
       <Card className="glass-effect border-border/50 shadow-card">
         <CardHeader>
           <CardTitle className="text-2xl text-primary">Fuel Entry</CardTitle>
@@ -229,6 +251,8 @@ export default function FuelEntry() {
           </Button>
         </CardContent>
       </Card>
+
+      <FuelHistoryTable />
     </div>
   );
 }
