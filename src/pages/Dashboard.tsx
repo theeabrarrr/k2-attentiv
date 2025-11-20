@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { LogOut, Users, Calendar, Clock, TrendingUp, Fuel } from "lucide-react";
+import { LogOut, Users, Calendar, Clock, TrendingUp, Fuel, ClipboardCheck, Fuel as FuelIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
+import { DashboardCharts } from "@/components/DashboardCharts";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Dashboard = () => {
@@ -42,66 +43,28 @@ const Dashboard = () => {
 
   const fetchDashboardStats = async () => {
     const today = new Date().toISOString().split('T')[0];
-    
-    // Get week start date (Monday)
     const now = new Date();
     const dayOfWeek = now.getDay();
     const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     const weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
-    
-    // Get month start date
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    // Fetch total active employees
-    const { count: totalEmployees } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true);
-
-    // Fetch today's present count
-    const { count: todayPresent } = await supabase
-      .from("attendance")
-      .select("*", { count: "exact", head: true })
-      .eq("date", today)
-      .eq("status", "present");
-
-    // Fetch late arrivals this week
-    const { count: lateArrivals } = await supabase
-      .from("attendance")
-      .select("*", { count: "exact", head: true })
-      .gte("date", weekStart)
-      .eq("status", "late");
-
-    // Fetch attendance rate for this month
-    const { data: monthAttendance } = await supabase
-      .from("attendance")
-      .select("status")
-      .gte("date", monthStart)
-      .lte("date", monthEnd);
-
+    const { count: totalEmployees } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("is_active", true);
+    const { count: todayPresent } = await supabase.from("attendance").select("*", { count: "exact", head: true }).eq("date", today).eq("status", "present");
+    const { count: lateArrivals } = await supabase.from("attendance").select("*", { count: "exact", head: true }).gte("date", weekStart).eq("status", "late");
+    const { data: monthAttendance } = await supabase.from("attendance").select("status").gte("date", monthStart).lte("date", monthEnd);
+    
     let attendanceRate = 0;
     if (monthAttendance && monthAttendance.length > 0) {
       const presentCount = monthAttendance.filter(r => r.status === "present").length;
       attendanceRate = Math.round((presentCount / monthAttendance.length) * 100);
     }
 
-    // Fetch total fuel amount for this month
-    const { data: fuelReports } = await supabase
-      .from("fuel_reports")
-      .select("total_amount")
-      .gte("date", monthStart)
-      .lte("date", monthEnd);
-
+    const { data: fuelReports } = await supabase.from("fuel_reports").select("total_amount").gte("date", monthStart).lte("date", monthEnd);
     const totalFuelAmount = fuelReports?.reduce((sum, report) => sum + Number(report.total_amount), 0) || 0;
 
-    setStats({
-      totalEmployees: totalEmployees || 0,
-      todayPresent: todayPresent || 0,
-      lateArrivals: lateArrivals || 0,
-      attendanceRate,
-      totalFuelAmount,
-    });
+    setStats({ totalEmployees: totalEmployees || 0, todayPresent: todayPresent || 0, lateArrivals: lateArrivals || 0, attendanceRate, totalFuelAmount });
   };
 
   const handleLogout = async () => {
@@ -111,100 +74,78 @@ const Dashboard = () => {
   };
 
   if (roleLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div></div>;
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card shadow-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-lg gradient-primary flex items-center justify-center shadow-elevated">
-              <span className="text-xl font-bold text-white">K2</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                K2 Attendance System
-              </h1>
-              <p className="text-sm text-muted-foreground">Welcome, {userName}</p>
-            </div>
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border/50">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Welcome back, <span className="font-medium">{userName || "Loading..."}</span> {role && <span className="ml-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium uppercase">{role}</span>}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-1.5 rounded-lg bg-muted">
-              <span className="text-sm font-medium capitalize">{role}</span>
-            </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </div>
+          <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2"><LogOut className="h-4 w-4" />Logout</Button>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-              <Users className="h-4 w-4 text-primary" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Employees</CardTitle>
+              <Users className="h-5 w-5 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
-              <p className="text-xs text-muted-foreground">Active users</p>
-            </CardContent>
+            <CardContent><div className="text-3xl font-bold">{stats.totalEmployees}</div></CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Present</CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Today's Present</CardTitle>
+              <Calendar className="h-5 w-5 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.todayPresent}</div>
-              <p className="text-xs text-muted-foreground">Marked today</p>
-            </CardContent>
+            <CardContent><div className="text-3xl font-bold">{stats.todayPresent}</div></CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
-              <Clock className="h-4 w-4 text-destructive" />
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Late Arrivals (Week)</CardTitle>
+              <Clock className="h-5 w-5 text-destructive" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.lateArrivals}</div>
-              <p className="text-xs text-muted-foreground">This week</p>
-            </CardContent>
+            <CardContent><div className="text-3xl font-bold">{stats.lateArrivals}</div></CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-primary" />
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Attendance Rate</CardTitle>
+              <TrendingUp className="h-5 w-5 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
+            <CardContent><div className="text-3xl font-bold">{stats.attendanceRate}%</div></CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Fuel Amount</CardTitle>
-              <Fuel className="h-4 w-4 text-primary" />
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Fuel (Month)</CardTitle>
+              <Fuel className="h-5 w-5 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">PKR {stats.totalFuelAmount.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
+            <CardContent><div className="text-3xl font-bold">{stats.totalFuelAmount.toFixed(0)}</div><p className="text-xs text-muted-foreground mt-1">PKR</p></CardContent>
           </Card>
         </div>
 
-        <AttendanceSummary refreshTrigger={refreshTrigger} />
-      </main>
+        <DashboardCharts />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow cursor-pointer" onClick={() => navigate("/mark-attendance")}>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><ClipboardCheck className="h-5 w-5 text-primary" />Mark Attendance</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">Quickly record attendance for today</p></CardContent>
+          </Card>
+
+          <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow cursor-pointer" onClick={() => navigate("/fuel")}>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><FuelIcon className="h-5 w-5 text-primary" />Add Fuel Entry</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">Submit your fuel allowance report</p></CardContent>
+          </Card>
+        </div>
+
+        <AttendanceSummary key={refreshTrigger} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
+      </div>
     </div>
   );
 };
