@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { useUserRole } from "@/hooks/useUserRole";
+import { getCurrentAttendanceCycle } from "@/lib/attendanceCycle";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -51,23 +52,30 @@ const Dashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    // Get current attendance cycle (26th to 25th)
+    const attendanceCycle = getCurrentAttendanceCycle();
+    const cycleStart = attendanceCycle.startDate;
+    const cycleEnd = attendanceCycle.endDate;
+
+    // Get current calendar month (1st to 30th/31st)
     const now = new Date();
+    const calendarMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const calendarMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = now.getDay();
     const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     const weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
     let myWorkingDays = 0;
     if (role === 'employee') {
-      // For employees: count their working days this month
+      // For employees: count their working days in current ATTENDANCE CYCLE
       const { count } = await supabase
         .from("attendance")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .gte("date", monthStart)
-        .lte("date", monthEnd)
+        .gte("date", cycleStart)
+        .lte("date", cycleEnd)
         .in("status", ["present", "late"]);
       myWorkingDays = count || 0;
     }
@@ -75,15 +83,18 @@ const Dashboard = () => {
     const { count: totalEmployees } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("is_active", true);
     const { count: todayPresent } = await supabase.from("attendance").select("*", { count: "exact", head: true }).eq("date", today).eq("status", "present");
     const { count: lateArrivals } = await supabase.from("attendance").select("*", { count: "exact", head: true }).gte("date", weekStart).eq("status", "late");
-    const { data: monthAttendance } = await supabase.from("attendance").select("status").gte("date", monthStart).lte("date", monthEnd);
+    
+    // Attendance Rate uses ATTENDANCE CYCLE dates
+    const { data: cycleAttendance } = await supabase.from("attendance").select("status").gte("date", cycleStart).lte("date", cycleEnd);
     
     let attendanceRate = 0;
-    if (monthAttendance && monthAttendance.length > 0) {
-      const presentCount = monthAttendance.filter(r => r.status === "present").length;
-      attendanceRate = Math.round((presentCount / monthAttendance.length) * 100);
+    if (cycleAttendance && cycleAttendance.length > 0) {
+      const presentCount = cycleAttendance.filter(r => r.status === "present").length;
+      attendanceRate = Math.round((presentCount / cycleAttendance.length) * 100);
     }
 
-    const { data: fuelReports } = await supabase.from("fuel_reports").select("total_amount").gte("date", monthStart).lte("date", monthEnd);
+    // Fuel uses CALENDAR MONTH dates
+    const { data: fuelReports } = await supabase.from("fuel_reports").select("total_amount").gte("date", calendarMonthStart).lte("date", calendarMonthEnd);
     const totalFuelAmount = fuelReports?.reduce((sum, report) => sum + Number(report.total_amount), 0) || 0;
 
     setStats({ totalEmployees: totalEmployees || 0, todayPresent: todayPresent || 0, lateArrivals: lateArrivals || 0, attendanceRate, totalFuelAmount, myWorkingDays });
@@ -119,7 +130,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{stats.myWorkingDays}</div>
-                <p className="text-xs text-muted-foreground mt-1">This Month</p>
+                <p className="text-xs text-muted-foreground mt-1">Current Cycle</p>
               </CardContent>
             </Card>
           ) : (
@@ -158,7 +169,7 @@ const Dashboard = () => {
 
           <Card className="border-border/50 shadow-card hover:shadow-elevated transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Fuel (Month)</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Fuel (Current Month)</CardTitle>
               <Fuel className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent><div className="text-3xl font-bold">{stats.totalFuelAmount.toFixed(0)}</div><p className="text-xs text-muted-foreground mt-1">PKR</p></CardContent>
