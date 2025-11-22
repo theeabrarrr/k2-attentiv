@@ -8,9 +8,9 @@ export const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard, showForAll: true },
-    { path: "/employees", label: "Employees", icon: Users, showForAll: false },
+    { path: "/employees", label: "Employees", icon: Users, showForAll: false, adminOnly: true },
     { path: "/reports", label: "Reports", icon: FileText, showForAll: true },
-    { path: "/mark-attendance", label: "Mark Attendance", icon: ClipboardCheck, showForAll: false },
+    { path: "/mark-attendance", label: "Mark Attendance", icon: ClipboardCheck, showForAll: false, adminOnly: true },
     { path: "/fuel", label: "Fuel Entry", icon: FileText, showForAll: true },
   ];
 
@@ -19,6 +19,8 @@ export const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex gap-1">
           {navItems.map((item) => {
+            // Hide admin-only items from employees
+            if (item.adminOnly && role === "employee") return null;
             const shouldShow = item.showForAll || canManage;
             if (!shouldShow) return null;
 
