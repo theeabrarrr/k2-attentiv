@@ -11,9 +11,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { FuelManagementDashboard } from "@/components/FuelManagementDashboard";
 import { FuelHistoryTable } from "@/components/FuelHistoryTable";
 import { FuelImportDialog } from "@/components/FuelImportDialog";
+import { formatDateForDB, getCurrentKarachiDate } from "@/lib/dateUtils";
 
 interface JobItem {
   job_no: string;
@@ -21,11 +23,10 @@ interface JobItem {
   km: number;
 }
 
-const RATE_PER_KM = 9;
-
 export default function FuelEntry() {
   const { role, loading: roleLoading } = useUserRole();
-  const [date, setDate] = useState<Date>(new Date());
+  const { get } = useSystemSettings();
+  const [date, setDate] = useState<Date>(getCurrentKarachiDate());
   const [items, setItems] = useState<JobItem[]>([
     { job_no: "", area: "", km: 0 },
   ]);
@@ -49,8 +50,9 @@ export default function FuelEntry() {
     setItems(newItems);
   };
 
+  const fuelRate = get("FUEL_RATE_PER_KM") as number;
   const totalKm = items.reduce((sum, item) => sum + (Number(item.km) || 0), 0);
-  const totalAmount = totalKm * RATE_PER_KM;
+  const totalAmount = totalKm * fuelRate;
 
   const handleSubmit = async () => {
     // Validation
@@ -74,7 +76,7 @@ export default function FuelEntry() {
         .from("fuel_reports")
         .insert({
           user_id: user.id,
-          date: format(date, "yyyy-MM-dd"),
+          date: formatDateForDB(date),
           total_km: totalKm,
           total_amount: totalAmount,
         })
@@ -113,7 +115,7 @@ export default function FuelEntry() {
       
       // Reset form
       setItems([{ job_no: "", area: "", km: 0 }]);
-      setDate(new Date());
+      setDate(getCurrentKarachiDate());
       setRefreshHistory(prev => prev + 1);
     } catch (error) {
       console.error("Error submitting fuel report:", error);
@@ -253,7 +255,7 @@ export default function FuelEntry() {
               <span>Total Amount:</span>
               <span className="text-primary">PKR {totalAmount.toFixed(2)}</span>
             </div>
-            <p className="text-sm text-muted-foreground">Rate: PKR {RATE_PER_KM} per km</p>
+            <p className="text-sm text-muted-foreground">Rate: PKR {fuelRate} per km</p>
           </div>
 
           {/* Submit Button */}

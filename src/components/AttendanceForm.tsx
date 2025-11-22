@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Clock, Save } from "lucide-react";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
+import { formatDateForDB, getCurrentKarachiDate } from "@/lib/dateUtils";
 
 interface Profile {
   id: string;
@@ -18,9 +20,10 @@ interface AttendanceFormProps {
 }
 
 export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
+  const { get } = useSystemSettings();
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(formatDateForDB(getCurrentKarachiDate()));
   const [checkInTime, setCheckInTime] = useState("09:00");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [status, setStatus] = useState<"present" | "late" | "absent">("present");
@@ -31,20 +34,24 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
     fetchEmployees();
   }, []);
 
-  // Auto-mark as late if check-in is after 10:15 AM
+  // Auto-mark as late if check-in is after configured time
   useEffect(() => {
     if (checkInTime) {
+      const lateTime = get("LATE_ARRIVAL_TIME") as string;
+      const [lateHours, lateMinutes] = lateTime.split(':').map(Number);
       const [hours, minutes] = checkInTime.split(':').map(Number);
+      
       const checkInMinutes = hours * 60 + minutes;
-      const graceTimeMinutes = 10 * 60 + 15; // 10:15 AM
+      const graceTimeMinutes = lateHours * 60 + lateMinutes;
       
       if (checkInMinutes > graceTimeMinutes) {
         setStatus("late");
-      } else {
+      } else if (status === "late") {
+        // Only auto-change from late to present, not from absent
         setStatus("present");
       }
     }
-  }, [checkInTime]);
+  }, [checkInTime, get]);
 
   const fetchEmployees = async () => {
     const { data } = await supabase
@@ -91,7 +98,7 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
       setCheckOutTime("");
       setStatus("present");
       setNotes("");
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(formatDateForDB(getCurrentKarachiDate()));
       
       // Notify parent to refresh data
       onSuccess?.();

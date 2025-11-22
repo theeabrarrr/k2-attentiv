@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Upload, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { validateCSVRow } from "@/lib/csvValidation";
+import { formatDateForDB } from "@/lib/dateUtils";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
 
 interface FuelImportDialogProps {
   open: boolean;
@@ -12,19 +15,20 @@ interface FuelImportDialogProps {
 }
 
 interface CSVRow {
-  employeeEmail: string;
+  email: string;
   date: string;
-  jobNo: string;
+  job_no: string;
   area: string;
-  km: number;
+  km: string;
 }
 
 export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const { get } = useSystemSettings();
 
   const downloadTemplate = () => {
-    const template = "Employee Email,Date (YYYY-MM-DD),Job No,Area,KM\nexample@company.com,2025-01-20,JOB-001,North Area,45\nexample@company.com,2025-01-20,JOB-002,South Area,30";
+    const template = "email,date,job_no,area,km\nexample@company.com,2025-01-20,JOB-001,North Area,45\nexample@company.com,2025-01-20,JOB-002,South Area,30";
     const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -41,6 +45,7 @@ export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialog
     const lines = text.trim().split("\n");
     const rows: CSVRow[] = [];
 
+    // Skip header row
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
@@ -49,11 +54,11 @@ export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialog
       if (values.length < 5) continue;
 
       rows.push({
-        employeeEmail: values[0],
+        email: values[0],
         date: values[1],
-        jobNo: values[2],
+        job_no: values[2],
         area: values[3],
-        km: parseFloat(values[4]) || 0,
+        km: values[4],
       });
     }
 
@@ -85,8 +90,33 @@ export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialog
         return;
       }
 
+      // Validate all rows
+      const errors: string[] = [];
+      rows.forEach((row, index) => {
+        const validation = validateCSVRow(row, index + 2); // +2 because line 1 is header and array is 0-indexed
+        if (!validation.success && validation.error) {
+          errors.push(validation.error);
+        }
+      });
+
+      if (errors.length > 0) {
+        toast.error(
+          <div>
+            <p className="font-semibold">CSV Validation Failed:</p>
+            <ul className="list-disc list-inside text-xs mt-1 max-h-32 overflow-y-auto">
+              {errors.map((err, idx) => (
+                <li key={idx}>{err}</li>
+              ))}
+            </ul>
+          </div>,
+          { duration: 5000 }
+        );
+        setIsProcessing(false);
+        return;
+      }
+
       // Get all unique emails and fetch user IDs
-      const emails = [...new Set(rows.map(r => r.employeeEmail))];
+      const emails = [...new Set(rows.map(r => r.email))];
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email")
@@ -96,32 +126,41 @@ export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialog
 
       const emailToUserId = new Map(profiles?.map(p => [p.email, p.id]) || []);
 
+      // Check for missing users
+      const missingEmails = emails.filter(email => !emailToUserId.has(email));
+      if (missingEmails.length > 0) {
+        toast.error(`Users not found for emails: ${missingEmails.join(", ")}`);
+        setIsProcessing(false);
+        return;
+      }
+
       // Group rows by employee and date
       const groups = new Map<string, CSVRow[]>();
       rows.forEach(row => {
-        const key = `${row.employeeEmail}_${row.date}`;
+        const key = `${row.email}_${row.date}`;
         if (!groups.has(key)) {
           groups.set(key, []);
         }
         groups.get(key)!.push(row);
       });
 
+      const fuelRate = get("FUEL_RATE_PER_KM") as number;
       let successCount = 0;
       let errorCount = 0;
 
       // Process each group
       for (const [key, groupRows] of groups.entries()) {
         const firstRow = groupRows[0];
-        const userId = emailToUserId.get(firstRow.employeeEmail);
+        const userId = emailToUserId.get(firstRow.email);
 
         if (!userId) {
-          console.error(`User not found: ${firstRow.employeeEmail}`);
+          console.error(`User not found: ${firstRow.email}`);
           errorCount++;
           continue;
         }
 
-        const totalKm = groupRows.reduce((sum, r) => sum + r.km, 0);
-        const totalAmount = totalKm * 9;
+        const totalKm = groupRows.reduce((sum, r) => sum + parseFloat(r.km), 0);
+        const totalAmount = totalKm * fuelRate;
 
         // Insert fuel report
         const { data: report, error: reportError } = await supabase
@@ -144,9 +183,9 @@ export function FuelImportDialog({ open, onClose, onComplete }: FuelImportDialog
         // Insert fuel report items
         const items = groupRows.map(row => ({
           report_id: report.id,
-          job_no: row.jobNo,
+          job_no: row.job_no,
           area: row.area,
-          km: row.km,
+          km: parseFloat(row.km),
         }));
 
         const { error: itemsError } = await supabase
