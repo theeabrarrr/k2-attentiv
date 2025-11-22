@@ -9,6 +9,7 @@ import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { useUserRole } from "@/hooks/useUserRole";
 import { getCurrentAttendanceCycle } from "@/lib/attendanceCycle";
+import { getCurrentKarachiDate, formatDateForDB } from "@/lib/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -57,15 +58,15 @@ const Dashboard = () => {
     const cycleStart = attendanceCycle.startDate;
     const cycleEnd = attendanceCycle.endDate;
 
-    // Get current calendar month (1st to 30th/31st)
-    const now = new Date();
-    const calendarMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const calendarMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    // Get current calendar month (1st to 30th/31st) in Asia/Karachi timezone
+    const nowKarachi = getCurrentKarachiDate();
+    const calendarMonthStart = formatDateForDB(new Date(nowKarachi.getFullYear(), nowKarachi.getMonth(), 1));
+    const calendarMonthEnd = formatDateForDB(new Date(nowKarachi.getFullYear(), nowKarachi.getMonth() + 1, 0));
 
-    const today = new Date().toISOString().split('T')[0];
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
+    const today = formatDateForDB(nowKarachi);
+    const dayOfWeek = nowKarachi.getDay();
+    const diff = nowKarachi.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const weekStart = formatDateForDB(new Date(nowKarachi.setDate(diff)));
 
     let myWorkingDays = 0;
     if (role === 'employee') {
