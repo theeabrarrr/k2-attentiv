@@ -226,6 +226,15 @@ export function FuelManagementDashboard() {
     }
   };
 
+  // Helper function to escape CSV values containing commas, quotes, or newlines
+  const escapeCSVValue = (value: string): string => {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      // Escape double quotes by doubling them, then wrap in quotes
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+
   const exportToCSV = () => {
     if (details.length === 0) {
       toast.error("No data to export");
@@ -237,8 +246,8 @@ export function FuelManagementDashboard() {
       headers.join(","),
       ...details.map(record => [
         format(new Date(record.date), "dd/MM/yyyy"),
-        record.job_no,
-        record.area,
+        escapeCSVValue(record.job_no),
+        escapeCSVValue(record.area),
         record.km.toFixed(2),
         record.amount.toFixed(2)
       ].join(","))
@@ -248,7 +257,7 @@ export function FuelManagementDashboard() {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `fuel_details_${selectedEmployee?.full_name}_${selectedMonth?.month}.csv`);
+    link.setAttribute("download", `fuel_details_${escapeCSVValue(selectedEmployee?.full_name || '')}_${selectedMonth?.month}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
