@@ -2,13 +2,21 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Edit, Loader2, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Download, Edit, Loader2, Trash2, Upload, FileSpreadsheet } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
 import { FuelReportEditDialog } from "./FuelReportEditDialog";
 import { FuelImportDialog } from "./FuelImportDialog";
 import { formatDateForDB } from "@/lib/dateUtils";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -44,10 +52,28 @@ interface DetailedRecord {
 
 type ViewLevel = "employees" | "months" | "details";
 
+// Generate last 12 months for dropdown
+const generateMonthOptions = () => {
+  const options = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = subMonths(now, i);
+    options.push({
+      value: format(date, "yyyy-MM"),
+      label: format(date, "MMMM yyyy"),
+    });
+  }
+  return options;
+};
+
 export function FuelManagementDashboard() {
   const [viewLevel, setViewLevel] = useState<ViewLevel>("employees");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<MonthSummary | null>(null);
+  
+  // Month filter for Level 1 (employees view)
+  const [filterMonth, setFilterMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+  const monthOptions = generateMonthOptions();
   
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [months, setMonths] = useState<MonthSummary[]>([]);
@@ -66,15 +92,15 @@ export function FuelManagementDashboard() {
     } else if (viewLevel === "details" && selectedEmployee && selectedMonth) {
       fetchDetails(selectedEmployee.id, selectedMonth.month);
     }
-  }, [viewLevel, selectedEmployee, selectedMonth]);
+  }, [viewLevel, selectedEmployee, selectedMonth, filterMonth]);
 
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
-      // Get current month date range
-      const now = new Date();
-      const startDate = formatDateForDB(new Date(now.getFullYear(), now.getMonth(), 1));
-      const endDate = formatDateForDB(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      // Get selected month date range
+      const [year, month] = filterMonth.split("-").map(Number);
+      const startDate = formatDateForDB(new Date(year, month - 1, 1));
+      const endDate = formatDateForDB(new Date(year, month, 0));
 
       // Fetch all active employees
       const { data: profilesData, error: profilesError } = await supabase
@@ -85,7 +111,7 @@ export function FuelManagementDashboard() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch fuel reports for current month
+      // Fetch fuel reports for selected month
       const { data: reportsData, error: reportsError } = await supabase
         .from("fuel_reports")
         .select("user_id, total_km, total_amount")
@@ -266,6 +292,39 @@ export function FuelManagementDashboard() {
     toast.success("Report exported successfully");
   };
 
+  // Export summary of all employees with data for selected month
+  const exportSummaryCSV = () => {
+    const employeesWithData = employees.filter(e => e.total_km > 0 || e.total_amount > 0);
+    
+    if (employeesWithData.length === 0) {
+      toast.error("No employees with data for selected month");
+      return;
+    }
+
+    const selectedMonthLabel = monthOptions.find(m => m.value === filterMonth)?.label || filterMonth;
+    const headers = ["Employee Name", "Total KM", "Total Amount (PKR)"];
+    const csvContent = [
+      headers.join(","),
+      ...employeesWithData.map(emp => [
+        escapeCSVValue(emp.full_name),
+        emp.total_km.toFixed(2),
+        emp.total_amount.toFixed(2)
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `fuel_summary_${filterMonth}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`Exported ${employeesWithData.length} employees with fuel data`);
+  };
+
   const handleDelete = async () => {
     if (!deletingReportId) return;
 
@@ -369,12 +428,32 @@ export function FuelManagementDashboard() {
           {/* LEVEL 1: Employees */}
           {viewLevel === "employees" && (
             <>
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Technicians Overview (Current Month)</h3>
-                <Button onClick={() => setIsImportOpen(true)} variant="outline">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </Button>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold">Technicians Overview</h3>
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={exportSummaryCSV} variant="outline">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export Summary
+                  </Button>
+                  <Button onClick={() => setIsImportOpen(true)} variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import CSV
+                  </Button>
+                </div>
               </div>
               
               {isLoading ? (
@@ -383,30 +462,47 @@ export function FuelManagementDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {employees.map((employee) => (
-                    <Card
-                      key={employee.id}
-                      className="cursor-pointer hover:shadow-elevated transition-shadow border-border/50"
-                      onClick={() => {
-                        setSelectedEmployee(employee);
-                        setViewLevel("months");
-                      }}
-                    >
-                      <CardHeader>
-                        <CardTitle className="text-lg">{employee.full_name}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total KM:</span>
-                          <span className="font-semibold">{employee.total_km.toFixed(2)} km</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total Cost:</span>
-                          <span className="font-semibold text-primary">PKR {employee.total_amount.toFixed(2)}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {employees.map((employee) => {
+                    const hasNoData = employee.total_km === 0 && employee.total_amount === 0;
+                    
+                    return (
+                      <Card
+                        key={employee.id}
+                        className={`cursor-pointer hover:shadow-elevated transition-shadow border-border/50 ${
+                          hasNoData ? "opacity-60 bg-muted/30" : ""
+                        }`}
+                        onClick={() => {
+                          setSelectedEmployee(employee);
+                          setViewLevel("months");
+                        }}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">{employee.full_name}</CardTitle>
+                            {hasNoData && (
+                              <Badge variant="secondary" className="text-xs">
+                                No Entry
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total KM:</span>
+                            <span className={`font-semibold ${hasNoData ? "text-muted-foreground" : ""}`}>
+                              {employee.total_km.toFixed(2)} km
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total Cost:</span>
+                            <span className={`font-semibold ${hasNoData ? "text-muted-foreground" : "text-primary"}`}>
+                              PKR {employee.total_amount.toFixed(2)}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </>
