@@ -104,6 +104,15 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
     setDeleteId(null);
   };
 
+  // Helper function to escape CSV values containing commas, quotes, or newlines
+  const escapeCSVValue = (value: string): string => {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      // Escape double quotes by doubling them, then wrap in quotes
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+
   const handleExport = () => {
     if (records.length === 0) {
       toast.error("No records to export");
@@ -114,12 +123,12 @@ export const AttendanceList = ({ canEdit, refreshTrigger }: AttendanceListProps)
     const csvContent = [
       headers.join(","),
       ...records.map(r => [
-        r.profiles.full_name,
+        escapeCSVValue(r.profiles.full_name),
         r.date,
         r.check_in_time,
         r.check_out_time || "N/A",
         r.status,
-        r.notes || ""
+        escapeCSVValue(r.notes || "")
       ].join(","))
     ].join("\n");
 
