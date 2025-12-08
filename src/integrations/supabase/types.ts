@@ -101,6 +101,7 @@ export type Database = {
           created_at: string | null
           date: string
           id: string
+          status: string
           total_amount: number
           total_km: number
           user_id: string
@@ -109,6 +110,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          status?: string
           total_amount?: number
           total_km?: number
           user_id: string
@@ -117,6 +119,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          status?: string
           total_amount?: number
           total_km?: number
           user_id?: string
@@ -128,6 +131,7 @@ export type Database = {
           created_at: string | null
           deactivated_at: string | null
           deactivation_reason: string | null
+          designation: string | null
           email: string
           full_name: string
           id: string
@@ -138,6 +142,7 @@ export type Database = {
           created_at?: string | null
           deactivated_at?: string | null
           deactivation_reason?: string | null
+          designation?: string | null
           email: string
           full_name: string
           id: string
@@ -148,6 +153,7 @@ export type Database = {
           created_at?: string | null
           deactivated_at?: string | null
           deactivation_reason?: string | null
+          designation?: string | null
           email?: string
           full_name?: string
           id?: string
