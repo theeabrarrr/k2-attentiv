@@ -342,9 +342,11 @@ export const EmployeeManagement = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Technician">Technician</SelectItem>
+                    <SelectItem value="AV Technician">AV Technician</SelectItem>
                     <SelectItem value="Supervisor">Supervisor</SelectItem>
                     <SelectItem value="Store Incharge">Store Incharge</SelectItem>
                     <SelectItem value="CRO">CRO (Customer Relation Officer)</SelectItem>
+                    <SelectItem value="Driver">Driver</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -523,9 +525,11 @@ export const EmployeeManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Technician">Technician</SelectItem>
+                  <SelectItem value="AV Technician">AV Technician</SelectItem>
                   <SelectItem value="Supervisor">Supervisor</SelectItem>
                   <SelectItem value="Store Incharge">Store Incharge</SelectItem>
                   <SelectItem value="CRO">CRO (Customer Relation Officer)</SelectItem>
+                  <SelectItem value="Driver">Driver</SelectItem>
                 </SelectContent>
               </Select>
             </div>
