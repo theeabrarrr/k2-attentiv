@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Users, RotateCcw, UserX, KeyRound } from "lucide-react";
+import { UserPlus, Users, RotateCcw, UserX, KeyRound, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,6 +26,13 @@ export const EmployeeManagement = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    full_name: "",
+    role: "employee" as "admin" | "manager" | "employee",
+    designation: "",
+  });
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -191,6 +199,66 @@ export const EmployeeManagement = () => {
     }
   };
 
+  const openEditDialog = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditFormData({
+      full_name: employee.full_name,
+      role: (employee.role as "admin" | "manager" | "employee") || "employee",
+      designation: employee.designation || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingEmployee) return;
+    setLoading(true);
+
+    try {
+      // Update profiles table
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editFormData.full_name,
+          designation: editFormData.designation || null,
+        })
+        .eq("id", editingEmployee.id);
+
+      if (profileError) throw profileError;
+
+      // Update user_roles table - first check if role exists
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", editingEmployee.id)
+        .maybeSingle();
+
+      if (existingRole) {
+        // Update existing role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .update({ role: editFormData.role })
+          .eq("user_id", editingEmployee.id);
+
+        if (roleError) throw roleError;
+      } else {
+        // Insert new role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: editingEmployee.id, role: editFormData.role });
+
+        if (roleError) throw roleError;
+      }
+
+      toast.success(`${editFormData.full_name} updated successfully`);
+      setEditDialogOpen(false);
+      setEditingEmployee(null);
+      fetchEmployees();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update employee");
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-card glass-effect border-border/50">
@@ -258,6 +326,9 @@ export const EmployeeManagement = () => {
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Role controls app access (e.g., Admin can delete, Manager can mark attendance).
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -349,6 +420,15 @@ export const EmployeeManagement = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => openEditDialog(emp)}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        title="Edit employee"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleResetPassword(emp.id, emp.full_name, emp.email)}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         title="Reset password"
@@ -391,6 +471,75 @@ export const EmployeeManagement = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription>
+              Update employee details, role, and designation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-full_name">Full Name</Label>
+              <Input
+                id="edit-full_name"
+                value={editFormData.full_name}
+                onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <Select 
+                value={editFormData.role} 
+                onValueChange={(v) => setEditFormData({ ...editFormData, role: v as any })}
+              >
+                <SelectTrigger id="edit-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Role controls app access (e.g., Admin can delete, Manager can mark attendance).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-designation">Designation</Label>
+              <Select 
+                value={editFormData.designation} 
+                onValueChange={(v) => setEditFormData({ ...editFormData, designation: v })}
+              >
+                <SelectTrigger id="edit-designation">
+                  <SelectValue placeholder="Select designation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Technician">Technician</SelectItem>
+                  <SelectItem value="Supervisor">Supervisor</SelectItem>
+                  <SelectItem value="Store Incharge">Store Incharge</SelectItem>
+                  <SelectItem value="CRO">CRO (Customer Relation Officer)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSave} disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
