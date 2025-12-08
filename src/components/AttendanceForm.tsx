@@ -24,7 +24,7 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [date, setDate] = useState(formatDateForDB(getCurrentKarachiDate()));
-  const [checkInTime, setCheckInTime] = useState("09:00");
+  const [checkInTime, setCheckInTime] = useState("10:00");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [status, setStatus] = useState<"present" | "late" | "absent">("present");
   const [notes, setNotes] = useState("");
@@ -93,8 +93,17 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
       toast.error(error.message);
     } else {
       toast.success("Attendance recorded successfully!");
-      setSelectedEmployee("");
-      setCheckInTime("09:00");
+      
+      // Auto-select next employee in list
+      const currentIndex = employees.findIndex(emp => emp.id === selectedEmployee);
+      const nextIndex = currentIndex + 1;
+      if (nextIndex < employees.length) {
+        setSelectedEmployee(employees[nextIndex].id);
+      } else {
+        setSelectedEmployee(""); // Reset if we've reached the end
+      }
+      
+      setCheckInTime("10:00");
       setCheckOutTime("");
       setStatus("present");
       setNotes("");
