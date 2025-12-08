@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Users, RotateCcw, UserX } from "lucide-react";
+import { UserPlus, Trash2, Users, RotateCcw, UserX, KeyRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
@@ -16,6 +16,7 @@ interface Employee {
   full_name: string;
   email: string;
   role?: string;
+  designation?: string;
   is_active?: boolean;
   deactivated_at?: string;
 }
@@ -29,6 +30,7 @@ export const EmployeeManagement = () => {
     email: "",
     password: "",
     role: "employee" as "admin" | "manager" | "employee",
+    designation: "",
   });
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export const EmployeeManagement = () => {
   const fetchEmployees = async () => {
     let query = supabase
       .from("profiles")
-      .select("id, full_name, email, is_active, deactivated_at")
+      .select("id, full_name, email, is_active, deactivated_at, designation")
       .order("full_name");
     
     // Filter by active status
@@ -56,7 +58,7 @@ export const EmployeeManagement = () => {
             .from("user_roles")
             .select("role")
             .eq("user_id", profile.id)
-            .single();
+            .maybeSingle();
           
           return {
             ...profile,
@@ -94,6 +96,7 @@ export const EmployeeManagement = () => {
           email: "",
           password: "",
           role: "employee",
+          designation: "",
         });
         fetchEmployees();
       }
@@ -156,6 +159,35 @@ export const EmployeeManagement = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to reactivate employee");
+    }
+  };
+
+  const handleResetPassword = async (employeeId: string, employeeName: string, email: string) => {
+    const newPassword = prompt(`Enter new password for ${employeeName}:`);
+    if (!newPassword || newPassword.length < 6) {
+      if (newPassword) toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const response = await supabase.functions.invoke('reset-employee-password', {
+        body: { employee_id: employeeId, new_password: newPassword },
+      });
+
+      if (response.error) {
+        toast.error(response.error.message || "Failed to reset password");
+      } else {
+        toast.success(`Password reset for ${employeeName}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reset password");
     }
   };
 
@@ -227,6 +259,24 @@ export const EmployeeManagement = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="designation">Designation</Label>
+                <Select 
+                  value={formData.designation} 
+                  onValueChange={(v) => setFormData({ ...formData, designation: v })}
+                >
+                  <SelectTrigger id="designation" className="glass-effect">
+                    <SelectValue placeholder="Select designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Technician">Technician</SelectItem>
+                    <SelectItem value="Supervisor">Supervisor</SelectItem>
+                    <SelectItem value="Store Incharge">Store Incharge</SelectItem>
+                    <SelectItem value="CRO">CRO (Customer Relation Officer)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Button type="submit" disabled={loading} className="gradient-primary shadow-3d hover:opacity-90">
@@ -264,6 +314,7 @@ export const EmployeeManagement = () => {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Designation</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -280,6 +331,11 @@ export const EmployeeManagement = () => {
                     </TableCell>
                     <TableCell>{emp.email}</TableCell>
                     <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {emp.designation || "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="outline" className="capitalize">
                         {emp.role}
                       </Badge>
@@ -289,7 +345,16 @@ export const EmployeeManagement = () => {
                         {emp.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleResetPassword(emp.id, emp.full_name, emp.email)}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        title="Reset password"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
                       {emp.is_active ? (
                         <Button
                           variant="ghost"
@@ -316,7 +381,7 @@ export const EmployeeManagement = () => {
                 ))}
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>

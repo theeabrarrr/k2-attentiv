@@ -19,7 +19,9 @@ interface AttendanceFormProps {
   onSuccess?: () => void;
 }
 
-const CUSTOM_ORDER = [
+const PRIORITY_ORDER = [
+  "Syed Jaffar Raza",    // Supervisor
+  "Muhammad Aqib",       // Store Incharge
   "Muhammad Abrar",
   "Muhammad Zuhaib",
   "Waseem Raja",
@@ -50,7 +52,7 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
   const [date, setDate] = useState(formatDateForDB(getCurrentKarachiDate()));
   const [checkInTime, setCheckInTime] = useState("10:00");
   const [checkOutTime, setCheckOutTime] = useState("");
-  const [status, setStatus] = useState<"present" | "late" | "absent">("present");
+  const [status, setStatus] = useState<"present" | "late" | "absent" | "leave">("present");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -92,36 +94,24 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
       .eq("date", date);
     
     if (profilesData) {
-      // Sort by custom order
+      // Sort by priority order
       const sorted = [...profilesData].sort((a, b) => {
-        const indexA = CUSTOM_ORDER.indexOf(a.full_name);
-        const indexB = CUSTOM_ORDER.indexOf(b.full_name);
-        // If not in custom order, put at end alphabetically
+        const indexA = PRIORITY_ORDER.indexOf(a.full_name);
+        const indexB = PRIORITY_ORDER.indexOf(b.full_name);
+        // If not in priority order, put at end alphabetically
         if (indexA === -1 && indexB === -1) return a.full_name.localeCompare(b.full_name);
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
         return indexA - indexB;
       });
       setEmployees(sorted);
-    }
-    
-    if (attendanceData) {
-      const markedIds = new Set(attendanceData.map(a => a.user_id));
+      
+      const markedIds = new Set((attendanceData || []).map(a => a.user_id));
       setMarkedEmployeeIds(markedIds);
       
       // Auto-select first available employee
-      if (profilesData) {
-        const sorted = [...profilesData].sort((a, b) => {
-          const indexA = CUSTOM_ORDER.indexOf(a.full_name);
-          const indexB = CUSTOM_ORDER.indexOf(b.full_name);
-          if (indexA === -1 && indexB === -1) return a.full_name.localeCompare(b.full_name);
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
-          return indexA - indexB;
-        });
-        const firstAvailable = sorted.find(emp => !markedIds.has(emp.id));
-        setSelectedEmployee(firstAvailable?.id || "");
-      }
+      const firstAvailable = sorted.find(emp => !markedIds.has(emp.id));
+      setSelectedEmployee(firstAvailable?.id || "");
     }
   };
 
@@ -232,7 +222,7 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
 
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
-          <Select value={status} onValueChange={(v) => setStatus(v as "present" | "late" | "absent")} required>
+          <Select value={status} onValueChange={(v) => setStatus(v as "present" | "late" | "absent" | "leave")} required>
             <SelectTrigger id="status" className="glass-effect">
               <SelectValue />
             </SelectTrigger>
@@ -240,6 +230,7 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
               <SelectItem value="present">Present</SelectItem>
               <SelectItem value="late">Late</SelectItem>
               <SelectItem value="absent">Absent</SelectItem>
+              <SelectItem value="leave">Leave</SelectItem>
             </SelectContent>
           </Select>
         </div>

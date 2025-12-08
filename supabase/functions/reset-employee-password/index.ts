@@ -40,53 +40,45 @@ Deno.serve(async (req) => {
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
-      .single()
+      .maybeSingle()
 
     if (!roles) {
-      return new Response(JSON.stringify({ error: 'Only admins can create employees' }), {
+      return new Response(JSON.stringify({ error: 'Only admins can reset passwords' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
       })
     }
 
-    const { email, password, full_name, role, designation } = await req.json()
+    const { employee_id, new_password } = await req.json()
 
-    // Create user
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name }
-    })
-
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+    if (!employee_id || !new_password) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
-    // Update profile with designation if provided
-    if (designation) {
-      await supabaseAdmin
-        .from('profiles')
-        .update({ designation })
-        .eq('id', newUser.user.id)
-    }
-
-    // Assign role
-    const { error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .insert({ user_id: newUser.user.id, role })
-
-    if (roleError) {
-      return new Response(JSON.stringify({ error: roleError.message }), {
+    if (new_password.length < 6) {
+      return new Response(JSON.stringify({ error: 'Password must be at least 6 characters' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
-    return new Response(JSON.stringify({ success: true, user: newUser.user }), {
+    // Update user password
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      employee_id,
+      { password: new_password }
+    )
+
+    if (updateError) {
+      return new Response(JSON.stringify({ error: updateError.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
