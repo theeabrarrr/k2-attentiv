@@ -19,9 +19,33 @@ interface AttendanceFormProps {
   onSuccess?: () => void;
 }
 
+const CUSTOM_ORDER = [
+  "Muhammad Abrar",
+  "Muhammad Zuhaib",
+  "Waseem Raja",
+  "Asghar Ali",
+  "Irfan Malik",
+  "Ameer Hamza",
+  "Naveed Khan",
+  "Arsalan Ahmed",
+  "Jibran Ahmed",
+  "Abdul Salam",
+  "Shehryaar Khan",
+  "Muhammad Naeem",
+  "Kaleem Uddin",
+  "Umar Hayat",
+  "Mohsin Ayub",
+  "Syed Jahanzaib",
+  "Muhammad Faraz",
+  "Muhammad Amin",
+  "Muhammad Shahid",
+  "Muhammad Hamid"
+];
+
 export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
   const { get } = useSystemSettings();
   const [employees, setEmployees] = useState<Profile[]>([]);
+  const [markedEmployeeIds, setMarkedEmployeeIds] = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [date, setDate] = useState(formatDateForDB(getCurrentKarachiDate()));
   const [checkInTime, setCheckInTime] = useState("10:00");
@@ -30,9 +54,10 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Fetch employees and attendance when date changes
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    fetchEmployeesAndAttendance();
+  }, [date]);
 
   // Auto-mark as late if check-in is after configured time
   useEffect(() => {
@@ -53,15 +78,50 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
     }
   }, [checkInTime, get]);
 
-  const fetchEmployees = async () => {
-    const { data } = await supabase
+  const fetchEmployeesAndAttendance = async () => {
+    // Fetch active employees
+    const { data: profilesData } = await supabase
       .from("profiles")
       .select("id, full_name")
-      .eq("is_active", true)
-      .order("full_name");
+      .eq("is_active", true);
     
-    if (data) {
-      setEmployees(data);
+    // Fetch attendance for the selected date
+    const { data: attendanceData } = await supabase
+      .from("attendance")
+      .select("user_id")
+      .eq("date", date);
+    
+    if (profilesData) {
+      // Sort by custom order
+      const sorted = [...profilesData].sort((a, b) => {
+        const indexA = CUSTOM_ORDER.indexOf(a.full_name);
+        const indexB = CUSTOM_ORDER.indexOf(b.full_name);
+        // If not in custom order, put at end alphabetically
+        if (indexA === -1 && indexB === -1) return a.full_name.localeCompare(b.full_name);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+      setEmployees(sorted);
+    }
+    
+    if (attendanceData) {
+      const markedIds = new Set(attendanceData.map(a => a.user_id));
+      setMarkedEmployeeIds(markedIds);
+      
+      // Auto-select first available employee
+      if (profilesData) {
+        const sorted = [...profilesData].sort((a, b) => {
+          const indexA = CUSTOM_ORDER.indexOf(a.full_name);
+          const indexB = CUSTOM_ORDER.indexOf(b.full_name);
+          if (indexA === -1 && indexB === -1) return a.full_name.localeCompare(b.full_name);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+        const firstAvailable = sorted.find(emp => !markedIds.has(emp.id));
+        setSelectedEmployee(firstAvailable?.id || "");
+      }
     }
   };
 
@@ -94,20 +154,19 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
     } else {
       toast.success("Attendance recorded successfully!");
       
-      // Auto-select next employee in list
-      const currentIndex = employees.findIndex(emp => emp.id === selectedEmployee);
-      const nextIndex = currentIndex + 1;
-      if (nextIndex < employees.length) {
-        setSelectedEmployee(employees[nextIndex].id);
-      } else {
-        setSelectedEmployee(""); // Reset if we've reached the end
-      }
+      // Add current employee to marked set and auto-select next available
+      const newMarkedIds = new Set(markedEmployeeIds);
+      newMarkedIds.add(selectedEmployee);
+      setMarkedEmployeeIds(newMarkedIds);
+      
+      // Find next available employee in custom order
+      const nextAvailable = employees.find(emp => !newMarkedIds.has(emp.id));
+      setSelectedEmployee(nextAvailable?.id || "");
       
       setCheckInTime("10:00");
       setCheckOutTime("");
       setStatus("present");
       setNotes("");
-      setDate(formatDateForDB(getCurrentKarachiDate()));
       
       // Notify parent to refresh data
       onSuccess?.();
@@ -125,11 +184,13 @@ export const AttendanceForm = ({ onSuccess }: AttendanceFormProps = {}) => {
               <SelectValue placeholder="Select employee" />
             </SelectTrigger>
             <SelectContent>
-              {employees.map((emp) => (
-                <SelectItem key={emp.id} value={emp.id}>
-                  {emp.full_name}
-                </SelectItem>
-              ))}
+              {employees
+                .filter(emp => !markedEmployeeIds.has(emp.id))
+                .map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.full_name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
