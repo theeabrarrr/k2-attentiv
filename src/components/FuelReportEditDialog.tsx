@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface JobItem {
   id?: string;
@@ -32,6 +36,13 @@ export function FuelReportEditDialog({ report, open, onClose, onComplete }: Fuel
   const [items, setItems] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [reportDate, setReportDate] = useState<Date>(new Date(report.date));
+
+  useEffect(() => {
+    if (open) {
+      setReportDate(new Date(report.date));
+    }
+  }, [open, report.date]);
 
   useEffect(() => {
     if (open) {
@@ -85,12 +96,13 @@ export function FuelReportEditDialog({ report, open, onClose, onComplete }: Fuel
 
     setIsSaving(true);
     try {
-      // Update fuel report totals
+      // Update fuel report totals and date
       const { error: reportError } = await supabase
         .from("fuel_reports")
         .update({
           total_km: totalKm,
           total_amount: totalAmount,
+          date: format(reportDate, "yyyy-MM-dd"),
         })
         .eq("id", report.id);
 
@@ -142,6 +154,34 @@ export function FuelReportEditDialog({ report, open, onClose, onComplete }: Fuel
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Date Field */}
+            <div className="space-y-2">
+              <Label>Report Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !reportDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {reportDate ? format(reportDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={reportDate}
+                    onSelect={(date) => date && setReportDate(date)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Job Items */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
